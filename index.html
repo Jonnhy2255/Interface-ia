@@ -1,0 +1,1745 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IA Assistant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/marked@4.0.0/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Thèmes et variables */
+    :root {
+      --transition-speed: 0.5s;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow-x: hidden;
+      position: relative;
+      transition: background-color var(--transition-speed) ease;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    body.theme-galaxy {
+      --primary-color: #e94caf;
+      --secondary-color: #a04cff;
+      --gradient: linear-gradient(90deg, #e94caf, #a04cff);
+      --bg-color: #0c1221;
+      --accent-color: rgba(233, 76, 175, 0.6);
+      --card-bg: #161630;
+      --message-bg: rgba(22, 22, 48, 0.8);
+      --border-color: rgba(233, 76, 175, 0.3);
+      --text-secondary: #a8a8c0;
+      --button-bg: rgba(44, 44, 80, 0.7);
+      background-color: var(--bg-color);
+    }
+    
+    body.theme-ocean {
+      --primary-color: #00b4d8;
+      --secondary-color: #0077b6;
+      --gradient: linear-gradient(90deg, #00b4d8, #0077b6);
+      --bg-color: #001e3c;
+      --accent-color: rgba(0, 180, 216, 0.6);
+      --card-bg: #002845;
+      --message-bg: rgba(0, 40, 69, 0.8);
+      --border-color: rgba(0, 180, 216, 0.3);
+      --text-secondary: #90b3c9;
+      --button-bg: rgba(0, 40, 69, 0.7);
+      background-color: var(--bg-color);
+    }
+    
+    /* Layout et conteneurs */
+    .app-wrapper {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      padding-bottom: 80px; /* Espace pour la barre de saisie fixe */
+    }
+    
+    .chat-container {
+      flex-grow: 1;
+      overflow-y: auto;
+      scroll-behavior: smooth;
+      position: relative;
+      z-index: 10;
+      padding-top: 4.5rem; /* Espace pour la barre de navigation fixe */
+      padding-bottom: 1rem;
+    }
+    
+    .content-layer {
+      position: relative;
+      z-index: 10;
+    }
+    
+    /* Styles des messages */
+    .message-content img {
+      max-width: 100%;
+      border-radius: 6px;
+      margin: 6px 0;
+    }
+    
+    .message-content p {
+      margin-bottom: 0.5rem;
+    }
+    
+    /* Animation et effets */
+    .bot-typing::after {
+      content: "";
+      animation: typing 1.5s infinite;
+    }
+    
+    @keyframes typing {
+      0% { content: ""; }
+      25% { content: "."; }
+      50% { content: ".."; }
+      75% { content: "..."; }
+    }
+    
+    /* Logo */
+    .logo-container {
+      position: relative;
+      width: 80px;
+      height: 80px;
+      margin: 0 auto;
+      background: var(--gradient);
+      border-radius: 50%;
+      box-shadow: 0 0 20px var(--accent-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+    
+    /* Effet d'étincelles */
+    .response-stars-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+      overflow: visible;
+    }
+    
+    .response-star {
+      position: absolute;
+      background-color: white;
+      border-radius: 50%;
+      opacity: 0;
+      z-index: 5;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(167, 88, 224, 0.6);
+      will-change: transform, opacity;
+    }
+    
+    @keyframes responseStar {
+      0% { 
+        opacity: 0;
+        transform: scale(0.2) translateY(0) translateX(0);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1) translateY(-15px) translateX(calc(var(--tx) * 0.5px));
+      }
+      100% { 
+        opacity: 0;
+        transform: scale(0.5) translateY(-30px) translateX(var(--tx) * 1px);
+      }
+    }
+    
+    /* Effet de bulles */
+    .response-bubbles-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+      overflow: visible;
+    }
+    
+    .response-bubble {
+      position: absolute;
+      border-radius: 50%;
+      opacity: 0;
+      z-index: 5;
+      background: radial-gradient(
+        circle at 30% 30%,
+        rgba(255, 255, 255, 0.6),
+        rgba(255, 255, 255, 0.1) 70%
+      );
+      will-change: transform, opacity;
+    }
+    
+    @keyframes responseBubble {
+      0% { 
+        opacity: 0;
+        transform: scale(0.2) translateY(0) translateX(0);
+      }
+      50% {
+        opacity: 0.8;
+        transform: scale(1) translateY(-10px) translateX(calc(var(--tx) * 0.3px));
+      }
+      100% { 
+        opacity: 0;
+        transform: scale(0.5) translateY(-20px) translateX(var(--tx) * 0.6px);
+      }
+    }
+    
+    /* Barre de saisie */
+    .input-area {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      margin-top: auto;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background-color: var(--bg-color);
+      z-index: 100;
+      transition: transform 0.3s ease;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .input-area.keyboard-open {
+      position: fixed;
+      bottom: 0;
+    }
+    
+    .input-container {
+      max-width: 800px;
+      margin: 0 auto;
+      position: relative;
+    }
+    
+    .input-glow {
+      position: relative;
+      border-radius: 24px;
+      padding: 3px;
+      background: var(--gradient);
+      background-size: 200% 100%;
+      animation: gradientShift 3s ease infinite;
+      box-shadow: 0 0 20px var(--accent-color);
+      transition: all 0.3s ease;
+    }
+    
+    .input-glow:focus-within {
+      box-shadow: 0 0 25px var(--accent-color);
+    }
+    
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    
+    /* Bouton d'envoi */
+    .send-button {
+      background: var(--gradient);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 15px rgba(var(--accent-color), 0.5);
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .send-button:active {
+      transform: scale(0.95);
+    }
+    
+    /* Spinner de chargement */
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Menu latéral style ChatGPT */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 280px;
+      height: 100%;
+      background-color: var(--bg-color);
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 1000;
+      transform: translateX(-100%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    
+    .sidebar.open {
+      transform: translateX(0);
+    }
+    
+    /* Overlay pour le menu */
+    .sidebar-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 990;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    
+    .sidebar-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+    
+    /* Nouvel style de menu */
+    .menu-section {
+      padding: 10px 15px;
+    }
+    
+    .menu-section-title {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      color: #9ca3af;
+    }
+    
+    .menu-item {
+      display: block;
+      padding: 12px 15px;
+      margin-bottom: 1px;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    
+    .menu-item:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .menu-account {
+      padding: 12px 15px;
+      display: flex;
+      align-items: center;
+      color: white;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+    
+    .menu-account:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .account-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background-color: #4b5563;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 12px;
+      font-weight: bold;
+    }
+    
+    /* Paramètres screen */
+    .settings-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: var(--bg-color);
+      z-index: 1100;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    
+    .settings-screen.open {
+      transform: translateX(0);
+    }
+    
+    .settings-header {
+      display: flex;
+      align-items: center;
+      padding: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .settings-header h2 {
+      font-size: 20px;
+      font-weight: bold;
+      margin-left: 12px;
+      color: white;
+    }
+    
+    .settings-back {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: white;
+    }
+    
+    .settings-item {
+      display: flex;
+      align-items: center;
+      padding: 18px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+    
+    .settings-item:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .settings-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background-color: rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 16px;
+    }
+    
+    .settings-info {
+      flex: 1;
+    }
+    
+    .settings-title {
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+    
+    .settings-subtitle {
+      font-size: 14px;
+      color: #9ca3af;
+    }
+
+    /* Submenu styles */
+    .submenu {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    
+    .submenu.open {
+      max-height: 200px;
+    }
+    
+    .submenu-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px 12px 56px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: all 0.2s ease;
+      position: relative;
+    }
+    
+    .submenu-item:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .submenu-item.active {
+      color: var(--primary-color);
+    }
+    
+    .submenu-item.active::before {
+      content: "";
+      position: absolute;
+      left: 40px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--primary-color);
+    }
+    
+    .submenu-icon {
+      margin-right: 10px;
+      width: 16px;
+      text-align: center;
+    }
+    
+    /* Fonds animés */
+    .stars-background {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0c1221, #16162e);
+      background-size: 400% 400%;
+      animation: gradientMovement 60s ease infinite;
+      overflow: hidden;
+      z-index: 1;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    
+    @keyframes gradientMovement {
+      0% { background-position: 0% 0%; }
+      25% { background-position: 50% 0%; }
+      50% { background-position: 100% 50%; }
+      75% { background-position: 50% 100%; }
+      100% { background-position: 0% 0%; }
+    }
+    
+    .nebula {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(40px);
+      opacity: 0.2;
+      background: radial-gradient(circle at center, 
+        rgba(167, 88, 224, 0.6), 
+        rgba(233, 76, 175, 0.4), 
+        transparent 70%);
+      animation: nebulaFloat 80s infinite;
+    }
+    
+    @keyframes nebulaFloat {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      25% { transform: translate(3%, 2%) scale(1.03); }
+      50% { transform: translate(1%, 4%) scale(0.98); }
+      75% { transform: translate(-2%, 1%) scale(1.02); }
+    }
+    
+    .star-bg {
+      position: absolute;
+      background: white;
+      border-radius: 50%;
+      animation: twinkleStar linear infinite;
+    }
+    
+    @keyframes twinkleStar {
+      0%, 100% { opacity: 0.2; filter: blur(0px); }
+      50% { opacity: 0.8; filter: blur(1px); }
+    }
+    
+    .shooting-star {
+      position: absolute;
+      height: 2px;
+      background: linear-gradient(to right, 
+        rgba(255, 255, 255, 0), 
+        rgba(255, 255, 255, 0.8), 
+        rgba(255, 255, 255, 0));
+      animation: shootingStarAnimation linear forwards;
+      transform-origin: right;
+    }
+    
+    @keyframes shootingStarAnimation {
+      0% {
+        opacity: 0;
+        transform: translateX(0) scaleX(0.1);
+      }
+      3% {
+        opacity: 1;
+        transform: translateX(0) scaleX(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translateX(calc(-100vw - 100px)) scaleX(0.5);
+      }
+    }
+    
+    .ocean-background {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, #001e3c, #00172b);
+      overflow: hidden;
+      z-index: 1;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    
+    .bubble {
+      position: absolute;
+      background: radial-gradient(
+        circle at 30% 30%,
+        rgba(255, 255, 255, 0.4),
+        rgba(255, 255, 255, 0.1) 70%
+      );
+      border-radius: 50%;
+      animation: bubbleRise linear forwards;
+      opacity: 0.7;
+    }
+    
+    @keyframes bubbleRise {
+      0% { 
+        transform: translateY(0) translateX(0);
+        opacity: 0.7;
+      }
+      100% { 
+        transform: translateY(-100vh) translateX(calc(var(--x-direction) * 50px));
+        opacity: 0;
+      }
+    }
+    
+    /* Thèmes */
+    .theme-galaxy .stars-background {
+      opacity: 1;
+    }
+    
+    .theme-ocean .ocean-background {
+      opacity: 1;
+    }
+    
+    /* Animation d'entrée */
+    .message-enter {
+      animation: messageEntrance 0.3s forwards;
+    }
+    
+    @keyframes messageEntrance {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    /* Style de mot caché/visible */
+    .word-hidden {
+      opacity: 0;
+      display: inline-block;
+      transition: opacity 0.3s ease;
+      margin-right: 4px;
+    }
+    
+    .word-visible {
+      opacity: 1;
+      display: inline-block;
+      margin-right: 4px;
+    }
+    
+    /* Action buttons style like ChatGPT */
+    .actions-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      max-width: 600px;
+      margin: 1rem auto;
+    }
+    
+    .actions-row {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    
+    .action-card {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem;
+      border-radius: 1rem;
+      background-color: rgba(30, 30, 50, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.2s;
+      cursor: pointer;
+      flex: 1;
+    }
+    
+    .theme-ocean .action-card {
+      background-color: rgba(0, 40, 70, 0.5);
+    }
+    
+    .action-card:hover {
+      background-color: rgba(60, 60, 100, 0.5);
+      border-color: var(--primary-color);
+    }
+    
+    .theme-ocean .action-card:hover {
+      background-color: rgba(0, 60, 100, 0.5);
+    }
+    
+    .action-icon {
+      font-size: 1.5rem;
+      color: var(--primary-color);
+    }
+    
+    /* Bouton copier */
+    .copy-button {
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      padding: 4px;
+      border-radius: 4px;
+      background-color: rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .copy-button:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+    
+    .copy-button svg {
+      width: 16px;
+      height: 16px;
+      color: white;
+    }
+    
+    /* Afficher le bouton de copie au survol du message */
+    .message-content-wrapper {
+      position: relative;
+    }
+    
+    .message-content-wrapper:hover .copy-button {
+      opacity: 1;
+    }
+    
+    /* Animation de confirmation de copie */
+    @keyframes copySuccess {
+      0%, 100% { opacity: 0; transform: translateY(4px); }
+      20%, 80% { opacity: 1; transform: translateY(0); }
+    }
+    
+    .copy-success {
+      position: absolute;
+      right: 8px;
+      top: -20px;
+      background-color: rgba(0, 200, 0, 0.2);
+      color: #00ff00;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      pointer-events: none;
+      animation: copySuccess 1.5s ease forwards;
+    }
+    
+    /* Rotation des flèches de sous-menu */
+    .arrow-rotate {
+      transform: rotate(180deg);
+    }
+    
+    /* Barre de navigation fixe */
+    .fixed-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 50;
+      background-color: var(--bg-color);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+
+<body class="text-white theme-galaxy">
+  <!-- Fonds animés -->
+  <div class="stars-background" id="stars-bg">
+    <!-- Nébuleuses et étoiles générées par JavaScript -->
+  </div>
+  
+  <div class="ocean-background" id="ocean-bg">
+    <!-- Bulles générées par JavaScript -->
+  </div>
+  
+  <!-- Structure principale de l'application -->
+  <div class="app-wrapper">
+    <!-- Menu latéral simplifié -->
+    <div id="sidebar" class="sidebar">
+      <!-- Section Mon compte -->
+      <div id="open-settings" class="menu-account">
+        <div class="account-avatar">M</div>
+        <div>Mon compte</div>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 ml-auto">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+        </svg>
+      </div>
+      
+      <!-- Section Chats -->
+      <div class="menu-section">
+        <div class="menu-section-title">Chats récents</div>
+        
+        <a href="#" class="menu-item">Modèle IA simple</a>
+        <a href="#" class="menu-item">Liste des verbes courants</a>
+      </div>
+    </div>
+    
+    <!-- Écran des paramètres -->
+    <div id="settings-screen" class="settings-screen">
+      <div class="settings-header">
+        <button id="back-from-settings" class="settings-back">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+          </svg>
+        </button>
+        <h2>Paramètres</h2>
+      </div>
+      
+      <div class="settings-content">
+        <div id="theme-settings" class="settings-item">
+          <div class="settings-icon">
+            <i class="fas fa-palette text-xl"></i>
+          </div>
+          <div class="settings-info">
+            <div class="settings-title">Thèmes</div>
+            <div class="settings-subtitle">Choisissez votre style d'interface</div>
+          </div>
+          <i class="fas fa-chevron-down ml-3 transform transition-transform" id="theme-arrow"></i>
+        </div>
+
+        <!-- Sous-menu pour les thèmes -->
+        <div id="theme-submenu" class="submenu">
+          <div id="theme-galaxy" class="submenu-item active">
+            <span class="submenu-icon"><i class="fas fa-moon"></i></span>
+            <span>Galaxie</span>
+          </div>
+          <div id="theme-ocean" class="submenu-item">
+            <span class="submenu-icon"><i class="fas fa-water"></i></span>
+            <span>Océan</span>
+          </div>
+        </div>
+        
+        <div id="about-settings" class="settings-item">
+          <div class="settings-icon">
+            <i class="fas fa-info-circle text-xl"></i>
+          </div>
+          <div class="settings-info">
+            <div class="settings-title">À propos</div>
+            <div class="settings-subtitle">Informations sur l'application</div>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 ml-3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
+        </div>
+      </div>
+    </div>
+    
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+    
+    <!-- En-tête de l'application - maintenant fixe -->
+    <header class="fixed-header py-2 px-4 flex justify-between items-center content-layer bg-opacity-95">
+      <div class="flex items-center gap-2">
+        <button id="menu-toggle" class="p-1 rounded-full hover:bg-opacity-30 hover:bg-white text-white">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+          </svg>
+        </button>
+        
+        <h1 class="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-500 theme-text">
+          Assistant IA
+        </h1>
+      </div>
+      
+      <div class="w-8 h-8 rounded-full bg-gradient-to-r from-pink-600 to-purple-600 theme-gradient flex items-center justify-center">
+        <span class="text-white text-xl">✨</span>
+      </div>
+    </header>
+
+    <!-- Contenu principal -->
+    <main class="flex-grow flex flex-col content-layer">
+      <div id="chat-container" class="chat-container px-4">
+        <div class="flex flex-col justify-center py-4 h-full">
+          <div class="text-center max-w-md mx-auto mb-6">
+            <!-- Texte principal -->
+            <h2 class="text-3xl font-bold mb-3 text-white">Comment puis-je vous aider ?</h2>
+          </div>
+          
+          <!-- Boutons d'action style ChatGPT -->
+          <div class="actions-container">
+            <div class="actions-row">
+              <div class="action-card">
+                <span class="text-green-500 text-2xl">🖼️</span>
+                <span>Créer une image</span>
+              </div>
+              <div class="action-card">
+                <span class="text-yellow-400 text-2xl">💡</span>
+                <span>Proposer</span>
+              </div>
+            </div>
+            <div class="actions-row">
+              <div class="action-card">
+                <span class="text-blue-400 text-2xl">📊</span>
+                <span>Analyser des données</span>
+              </div>
+              <div class="action-card">
+                <span class="text-purple-400 text-2xl">➕</span>
+                <span>Plus</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+    
+    <!-- Zone de saisie - positionnée fixe en bas -->
+    <div class="input-area" id="input-area">
+      <div class="input-container">
+        <div class="input-glow">
+          <div class="relative flex items-center bg-[#161630] theme-input-bg rounded-full overflow-hidden">
+            <textarea 
+              id="user-input"
+              class="w-full p-3 pr-16 bg-transparent text-white placeholder-gray-500 text-base focus:outline-none resize-none"
+              placeholder="Poser une question"
+              rows="1"></textarea>
+            
+            <div class="absolute right-2 flex items-center">
+              <div id="loading-indicator" class="hidden mr-2">
+                <div class="spinner"></div>
+              </div>
+              
+              <button type="submit" id="send-button" class="send-button">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 text-white">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="flex justify-between items-center mt-2 px-2">
+          <div class="flex space-x-2">
+            <button class="p-2 rounded-full text-gray-400 hover:bg-opacity-30 hover:bg-white">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+              </path>
+            </svg>
+          </button>
+          
+          <button class="p-2 rounded-full text-gray-400 hover:bg-opacity-30 hover:bg-white">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+            </svg>
+          </button>
+        </div>
+        
+        <div class="text-xs text-gray-400">
+          L'assistant peut faire des erreurs. Vérifiez les informations importantes.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Structure du code en sections pour une meilleure lisibilité
+      
+      // ==============================
+      // 1. INITIALISATION DES VARIABLES
+      // ==============================
+      
+      // Éléments du DOM
+      const userInput = document.getElementById('user-input');
+      const chatContainer = document.getElementById('chat-container');
+      const loadingIndicator = document.getElementById('loading-indicator');
+      const menuToggle = document.getElementById('menu-toggle');
+      const sidebar = document.getElementById('sidebar');
+      const sidebarOverlay = document.getElementById('sidebar-overlay');
+      const settingsScreen = document.getElementById('settings-screen');
+      const openSettings = document.getElementById('open-settings');
+      const backFromSettings = document.getElementById('back-from-settings');
+      const starsBackground = document.getElementById('stars-bg');
+      const oceanBackground = document.getElementById('ocean-bg');
+      const inputArea = document.getElementById('input-area');
+      const sendButton = document.getElementById('send-button');
+      const themeSettings = document.getElementById('theme-settings');
+      const themeSubmenu = document.getElementById('theme-submenu');
+      const themeArrow = document.getElementById('theme-arrow');
+      const themeGalaxy = document.getElementById('theme-galaxy');
+      const themeOcean = document.getElementById('theme-ocean');
+      
+      // Variables pour optimiser les animations
+      let lastStarTime = 0;
+      let lastBubbleTime = 0;
+      let isBackgroundInitialized = false;
+      let isProcessing = false;
+      let resizeTimeout;
+      let currentTheme = 'galaxy';
+      
+      // ==============================
+      // 2. GESTION DES ARRIÈRE-PLANS
+      // ==============================
+      
+      // Création du fond galaxie optimisé
+      function createOptimizedGalaxyBackground() {
+        if (isBackgroundInitialized) return;
+        
+        // Vider les éléments existants
+        starsBackground.innerHTML = '';
+        
+        // Créer un nombre limité de nébuleuses
+        const nebulaCount = 3;
+        for (let i = 0; i < nebulaCount; i++) {
+          const nebula = document.createElement('div');
+          nebula.classList.add('nebula');
+          
+          // Taille et position aléatoires
+          const size = Math.random() * 300 + 200;
+          nebula.style.width = `${size}px`;
+          nebula.style.height = `${size}px`;
+          
+          nebula.style.left = `${Math.random() * 100}%`;
+          nebula.style.top = `${Math.random() * 100}%`;
+          
+          // Couleur aléatoire entre violet et rose
+          const hue = Math.random() * 60 + 270;
+          nebula.style.background = `radial-gradient(circle at center, 
+            hsla(${hue}, 70%, 60%, 0.3), 
+            hsla(${hue - 20}, 80%, 40%, 0.2), 
+            transparent 70%)`;
+          
+          // Animation plus lente
+          nebula.style.animationDuration = `${Math.random() * 20 + 70}s`;
+          
+          starsBackground.appendChild(nebula);
+        }
+        
+        // Créer un nombre limité d'étoiles statiques
+        const starCount = 80;
+        for (let i = 0; i < starCount; i++) {
+          const star = document.createElement('div');
+          star.classList.add('star-bg');
+          
+          // Taille aléatoire (petite)
+          const size = Math.random() * 2 + 0.5;
+          star.style.width = `${size}px`;
+          star.style.height = `${size}px`;
+          
+          // Position aléatoire
+          star.style.left = `${Math.random() * 100}%`;
+          star.style.top = `${Math.random() * 100}%`;
+          
+          // Animation plus lente
+          const duration = Math.random() * 4 + 3;
+          star.style.animationDuration = `${duration}s`;
+          
+          // Brillance variable
+          star.style.opacity = Math.random() * 0.6 + 0.2;
+          
+          starsBackground.appendChild(star);
+        }
+        
+        // Fonction optimisée pour créer une étoile filante occasionnelle
+        function createOptimizedShootingStar() {
+          if (!document.body.classList.contains('theme-galaxy')) return;
+          
+          const now = Date.now();
+          if (now - lastStarTime < 3000) return; // Limiter à une tous les 3 secondes
+          lastStarTime = now;
+          
+          const star = document.createElement('div');
+          star.classList.add('shooting-star');
+          
+          // Taille
+          const width = Math.random() * 80 + 40;
+          star.style.width = `${width}px`;
+          
+          // Position aléatoire
+          const top = Math.random() * 70;
+          star.style.top = `${top}%`;
+          star.style.right = '-100px';
+          
+          // Durée
+          const duration = Math.random() * 2 + 1.5;
+          star.style.animationDuration = `${duration}s`;
+          
+          starsBackground.appendChild(star);
+          
+          // Supprimer après l'animation
+          setTimeout(() => {
+            if (star.parentNode) {
+              star.remove();
+            }
+          }, duration * 1000);
+        }
+        
+        // Créer des étoiles filantes moins fréquemment
+        setInterval(() => {
+          if (Math.random() < 0.2 && document.body.classList.contains('theme-galaxy')) {
+            createOptimizedShootingStar();
+          }
+        }, 5000);
+        
+        isBackgroundInitialized = true;
+      }
+      
+      // Création des bulles optimisé pour le thème océan
+      function createOptimizedBubbles() {
+        const now = Date.now();
+        if (now - lastBubbleTime < 2000) return;
+        lastBubbleTime = now;
+        
+        // Limiter le nombre de bulles
+        const bubbles = oceanBackground.querySelectorAll('.bubble');
+        if (bubbles.length > 40) {
+          bubbles.forEach((bubble, index) => {
+            if (index < 10) {
+              bubble.remove();
+            }
+          });
+        }
+        
+        // Créer moins de bulles
+        const bubbleCount = 5;
+        for (let i = 0; i < bubbleCount; i++) {
+          setTimeout(() => {
+            if (!document.body.classList.contains('theme-ocean')) return;
+            
+            const bubble = document.createElement('div');
+            bubble.classList.add('bubble');
+            
+            // Taille aléatoire
+            const size = Math.random() * 30 + 5;
+            bubble.style.width = `${size}px`;
+            bubble.style.height = `${size}px`;
+            
+            // Position aléatoire en bas de l'écran
+            bubble.style.left = `${Math.random() * 100}%`;
+            bubble.style.bottom = '0';
+            
+            // Direction de déplacement
+            const xDirection = Math.random() * 1.6 - 0.8;
+            bubble.style.setProperty('--x-direction', xDirection);
+            
+            // Animation plus rapide
+            const duration = Math.random() * 10 + 12;
+            bubble.style.animationDuration = `${duration}s`;
+            
+            oceanBackground.appendChild(bubble);
+            
+            // Supprimer la bulle après l'animation
+            setTimeout(() => {
+              if (bubble.parentNode) {
+                bubble.remove();
+              }
+            }, duration * 1000);
+          }, Math.random() * 700);
+        }
+      }
+      
+      // ==============================
+      // 3. EFFETS DE RÉVÉLATION DE TEXTE
+      // ==============================
+      
+      // Fonction optimisée pour créer des étoiles pour l'effet de révélation de mot
+      function createWordRevealEffect(container, word, position, isGalaxy = true) {
+        // Déterminer le type d'effet en fonction du thème
+        const effectType = isGalaxy ? 'stars' : 'bubbles';
+        
+        // Réutiliser le conteneur d'animation s'il existe déjà
+        let animationContainer = container.querySelector(`.response-${effectType}-container`);
+        if (!animationContainer) {
+          animationContainer = document.createElement('div');
+          animationContainer.classList.add(`response-${effectType}-container`);
+          container.appendChild(animationContainer);
+        }
+        
+        // Créer un élément pour le mot
+        const wordElement = document.createElement('span');
+        wordElement.textContent = word;
+        wordElement.classList.add('word-hidden');
+        
+        // Ajouter le mot à la fin du message
+        const messageContent = container.querySelector('.message-content');
+        messageContent.appendChild(wordElement);
+        
+        // Obtenir la position du mot
+        const wordRect = wordElement.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        
+        // Position relative
+        const relX = ((wordRect.left + wordRect.width/2) - containerRect.left) / containerRect.width * 100;
+        const relY = ((wordRect.top + wordRect.height/2) - containerRect.top) / containerRect.height * 100;
+        
+        // Nombre réduit de particules pour de meilleures performances
+        const particleCount = isGalaxy ? 6 : 4;
+        
+        for (let i = 0; i < particleCount; i++) {
+          setTimeout(() => {
+            // Ne pas créer de particules si l'élément n'est plus dans le DOM
+            if (!container.isConnected) return;
+            
+            const particle = document.createElement('div');
+            particle.classList.add(isGalaxy ? 'response-star' : 'response-bubble');
+            
+            // Taille optimisée
+            const size = isGalaxy ? 
+              (Math.random() * 5 + 2) :
+              (Math.random() * 8 + 4);
+              
+            particle.style.width = `${size}px`;
+            particle.style.height = `${size}px`;
+            
+            // Position plus précise autour du mot
+            const dispersion = 15;
+            const particleX = relX + (Math.random() * dispersion - dispersion/2);
+            const particleY = relY + (Math.random() * dispersion - dispersion/2);
+            
+            particle.style.left = `${particleX}%`;
+            particle.style.top = `${particleY}%`;
+            
+            // Direction de déplacement plus limitée
+            const txVal = Math.random() * 30 - 15;
+            particle.style.setProperty('--tx', txVal);
+            
+            // Animation plus rapide
+            const animDuration = Math.random() * 0.4 + 0.5;
+            const animDelay = i * 0.05;
+            particle.style.animation = `response${isGalaxy ? 'Star' : 'Bubble'} ${animDuration}s ${animDelay}s forwards`;
+            
+            animationContainer.appendChild(particle);
+            
+            // Supprimer la particule après l'animation
+            setTimeout(() => {
+              if (particle.parentNode) {
+                particle.remove();
+              }
+            }, (animDuration + animDelay) * 1000 + 100);
+          }, i * 30);
+        }
+        
+        // Révéler le mot après un délai basé sur la position
+        const revealDelay = Math.min(200 + position * 40, 500);
+        setTimeout(() => {
+          if (wordElement.isConnected) {
+            wordElement.classList.remove('word-hidden');
+            wordElement.classList.add('word-visible');
+            
+            // S'assurer que le chat défile vers le bas
+            requestAnimationFrame(() => {
+              chatContainer.scrollTop = chatContainer.scrollHeight;
+            });
+          }
+        }, revealDelay);
+        
+        return wordElement;
+      }
+      
+      // ==============================
+      // 4. GESTION DES MESSAGES
+      // ==============================
+      
+      // Fonction pour effacer le contenu de bienvenue
+      function clearWelcomeContent() {
+        // Ne garde que les messages, efface le contenu de bienvenue s'il est présent
+        const welcomeContent = chatContainer.querySelector('.flex-col.justify-center');
+        if (welcomeContent) {
+          chatContainer.innerHTML = '';
+        }
+      }
+      
+      // Ajouter un message utilisateur
+      const addUserMessage = (content) => {
+        clearWelcomeContent();
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('flex', 'justify-end', 'message-enter', 'mb-4');
+        
+        const isOceanTheme = document.body.classList.contains('theme-ocean');
+        
+        messageDiv.innerHTML = `
+          <div class="max-w-[80%] ${isOceanTheme ? 'bg-gradient-to-r from-blue-600 to-cyan-500' : 'bg-gradient-to-r from-pink-600 to-purple-600'} rounded-xl rounded-tr-none px-3 py-2 shadow-sm">
+            <p class="text-white text-sm">${content}</p>
+          </div>
+        `;
+        
+        chatContainer.appendChild(messageDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      };
+      
+      // Ajouter un message du bot avec effet d'étoiles progressives optimisé
+      const addBotMessage = (content) => {
+        clearWelcomeContent();
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('flex', 'items-start', 'gap-2', 'message-enter', 'mb-4');
+        
+        const isOceanTheme = document.body.classList.contains('theme-ocean');
+        const gradientClass = isOceanTheme ? 'from-blue-600 to-cyan-500' : 'from-pink-600 to-purple-600';
+        const borderClass = isOceanTheme ? 'border-blue-900/50' : 'border-pink-900/50';
+        const bgColor = isOceanTheme ? '#002845' : '#161630';
+        
+        const avatar = document.createElement('div');
+        avatar.classList.add('flex-shrink-0', 'mt-1');
+        avatar.innerHTML = `
+          <div class="rounded-full w-6 h-6 bg-gradient-to-r ${gradientClass} flex items-center justify-center relative">
+            <span class="text-white text-xs">✨</span>
+          </div>
+        `;
+        
+        const contentDiv = document.createElement('div');
+        contentDiv.classList.add('max-w-[80%]', 'rounded-xl', 'rounded-tl-none', 'p-3', 'shadow-sm', 'border', 'relative');
+        contentDiv.classList.add(borderClass);
+        contentDiv.style.backgroundColor = `${bgColor}cc`;
+        
+        // Wrapper pour le contenu du message et bouton de copie
+        const contentWrapper = document.createElement('div');
+        contentWrapper.classList.add('message-content-wrapper');
+        
+        // Bouton de copie
+        const copyButton = document.createElement('button');
+        copyButton.classList.add('copy-button');
+        copyButton.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+        `;
+        
+        copyButton.addEventListener('click', () => {
+          // Copier le texte complet au presse-papier
+          navigator.clipboard.writeText(content).then(() => {
+            // Afficher confirmation
+            const successMessage = document.createElement('div');
+            successMessage.classList.add('copy-success');
+            successMessage.textContent = 'Copié';
+            contentWrapper.appendChild(successMessage);
+            
+            // Supprimer après animation
+            setTimeout(() => {
+              if (successMessage.parentNode) {
+                successMessage.remove();
+              }
+            }, 2000);
+          });
+        });
+        
+        // Contenu du message
+        const messageContent = document.createElement('div');
+        messageContent.classList.add('message-content', 'text-white', 'text-sm');
+        
+        contentWrapper.appendChild(messageContent);
+        contentWrapper.appendChild(copyButton);
+        contentDiv.appendChild(contentWrapper);
+        
+        messageDiv.appendChild(avatar);
+        messageDiv.appendChild(contentDiv);
+        chatContainer.appendChild(messageDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        
+        // Déployer progressivement avec des effets spécifiques au thème
+        const isGalaxy = !isOceanTheme;
+        const words = content.split(' ');
+        
+        // Optimisation : traiter les mots par lots pour les textes longs
+        const batchSize = words.length > 100 ? 3 : words.length > 50 ? 2 : 1;
+        const totalBatches = Math.ceil(words.length / batchSize);
+        
+        function revealWordsBatch(batchIndex = 0) {
+          if (batchIndex >= totalBatches) return;
+          
+          const startIndex = batchIndex * batchSize;
+          const endIndex = Math.min(startIndex + batchSize, words.length);
+          
+          for (let i = startIndex; i < endIndex; i++) {
+            createWordRevealEffect(contentDiv, words[i], i, isGalaxy);
+          }
+          
+          // Délai adaptatif pour les lots (plus rapide pour les textes longs)
+          const baseDelay = words.length > 100 ? 40 : words.length > 50 ? 80 : 150;
+          setTimeout(() => revealWordsBatch(batchIndex + 1), baseDelay);
+        }
+        
+        // Commencer le déploiement par lots
+        revealWordsBatch();
+        
+        return contentDiv;
+      };
+      
+      // Animation de chargement
+      const showTypingIndicator = () => {
+        clearWelcomeContent();
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.id = 'typing-indicator';
+        messageDiv.classList.add('flex', 'items-start', 'gap-2', 'message-enter', 'mb-4');
+        
+        const isOceanTheme = document.body.classList.contains('theme-ocean');
+        const gradientClass = isOceanTheme ? 'from-blue-600 to-cyan-500' : 'from-pink-600 to-purple-600';
+        const borderClass = isOceanTheme ? 'border-blue-900/50' : 'border-pink-900/50';
+        const bgColor = isOceanTheme ? '#002845' : '#161630';
+        
+        const avatar = document.createElement('div');
+        avatar.classList.add('flex-shrink-0', 'mt-1');
+        avatar.innerHTML = `
+          <div class="rounded-full w-6 h-6 bg-gradient-to-r ${gradientClass} flex items-center justify-center relative">
+            <span class="text-white text-xs">✨</span>
+          </div>
+        `;
+        
+        const contentDiv = document.createElement('div');
+        contentDiv.classList.add('max-w-[80%]', 'rounded-xl', 'rounded-tl-none', 'p-3', 'shadow-sm', 'border');
+        contentDiv.classList.add(borderClass);
+        contentDiv.style.backgroundColor = `${bgColor}cc`;
+        contentDiv.innerHTML = `<div class="message-content bot-typing text-white text-sm">En train de réfléchir</div>`;
+        
+        messageDiv.appendChild(avatar);
+        messageDiv.appendChild(contentDiv);
+        chatContainer.appendChild(messageDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      };
+      
+      const removeTypingIndicator = () => {
+        const indicator = document.getElementById('typing-indicator');
+        if (indicator) {
+          indicator.remove();
+        }
+      };
+      
+      // ==============================
+      // 5. GESTION DES RÉPONSES
+      // ==============================
+      
+      // Réponses prédéfinies
+      const botResponses = [
+        "Je comprends votre question. Laissez-moi vous expliquer de façon simple et claire.",
+        "C'est une excellente question ! Voici ce que je peux vous dire à ce sujet.",
+        "Merci pour votre question. Voici quelques informations qui pourraient vous aider.",
+        "Je serais ravi de vous aider avec ça. Voici ce que vous devez savoir.",
+        "J'ai plusieurs informations sur ce sujet. Tout d'abord, permettez-moi de clarifier les points essentiels."
+      ];
+      
+      // Réponses plus détaillées basées sur des mots clés
+      const keywordResponses = {
+        "météo": "Si vous souhaitez connaître la météo, je vous recommande de consulter une application météo ou un site spécialisé qui utilise des données en temps réel. Je ne peux pas accéder aux données météorologiques actuelles.",
+        "heure": "Je n'ai pas accès à l'heure actuelle de votre appareil. Vous pouvez la voir en haut de votre écran ou en consultant les paramètres de votre appareil.",
+        "aide": "Je suis votre assistant IA et je peux vous aider dans de nombreux domaines comme répondre à des questions, fournir des explications, aider à la rédaction ou discuter de divers sujets. N'hésitez pas à me poser des questions précises.",
+        "bonjour": "Bonjour ! Comment puis-je vous aider aujourd'hui ? Je suis à votre disposition pour répondre à vos questions ou discuter du sujet de votre choix.",
+        "salut": "Salut ! Ravi de vous rencontrer. Comment puis-je vous être utile aujourd'hui ?",
+        "merci": "Avec plaisir ! N'hésitez pas si vous avez d'autres questions ou si vous avez besoin d'aide pour quoi que ce soit d'autre."
+      };
+      
+      // Fonction optimisée pour générer une réponse basée sur le message de l'utilisateur
+      const generateResponse = (message) => {
+        const lowerMessage = message.toLowerCase();
+        
+        // Vérifier d'abord les mots-clés pour une réponse rapide
+        for (const [keyword, response] of Object.entries(keywordResponses)) {
+          if (lowerMessage.includes(keyword)) {
+            return response;
+          }
+        }
+        
+        // Réponse générale aléatoire
+        const randomIndex = Math.floor(Math.random() * botResponses.length);
+        let response = botResponses[randomIndex];
+        
+        // Ajouter contexte limité
+        response += `\n\nVous avez mentionné "${message.substring(0, 30)}${message.length > 30 ? '...' : ''}". `;
+        response += `Je ferais de mon mieux pour vous fournir des informations pertinentes si j'avais accès à internet, mais je suis limité à ce que je connais déjà.`;
+        
+        return response;
+      };
+      
+      // ==============================
+      // 6. INTERACTIONS ET GESTIONNAIRES D'ÉVÉNEMENTS
+      // ==============================
+      
+      // Gestion du redimensionnement du textarea
+      userInput.addEventListener('input', function() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          this.style.height = 'auto';
+          this.style.height = Math.min((this.scrollHeight), 120) + 'px';
+          
+          if (this.scrollHeight > 120) {
+            this.style.overflowY = 'auto';
+          } else {
+            this.style.overflowY = 'hidden';
+          }
+        }, 50);
+      });
+      
+      // Enter pour envoyer, Shift+Enter pour nouvelle ligne
+      userInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      });
+      
+      // Gestion du clavier mobile
+      function handleKeyboardState() {
+        const viewport = window.visualViewport;
+        if (!viewport) return;
+        
+        function updatePosition() {
+          const heightDiff = window.innerHeight - viewport.height;
+          
+          if (heightDiff > 150) {
+            // Clavier est probablement visible
+            inputArea.classList.add('keyboard-open');
+            inputArea.style.transform = `translateY(-${heightDiff}px)`;
+            
+            // Assurer que l'entrée est visible
+            setTimeout(() => {
+              userInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+          } else {
+            // Clavier est probablement caché
+            inputArea.classList.remove('keyboard-open');
+            inputArea.style.transform = '';
+          }
+        }
+        
+        viewport.addEventListener('resize', updatePosition);
+        updatePosition();
+      }
+      
+      // Gestionnaire pour le bouton d'envoi
+      sendButton.addEventListener('click', sendMessage);
+      
+      // Fonction d'envoi de message
+      function sendMessage() {
+        // Éviter les soumissions multiples
+        if (isProcessing) return;
+        isProcessing = true;
+        
+        const message = userInput.value.trim();
+        if (!message) {
+          isProcessing = false;
+          return;
+        }
+        
+        // Ajouter le message de l'utilisateur
+        addUserMessage(message);
+        
+        // Réinitialiser l'entrée
+        userInput.value = '';
+        userInput.style.height = 'auto';
+        
+        // Afficher l'indicateur de chargement
+        loadingIndicator.classList.remove('hidden');
+        showTypingIndicator();
+        
+        // Simuler un délai de réponse
+        setTimeout(() => {
+          // Cacher l'indicateur de chargement
+          loadingIndicator.classList.add('hidden');
+          removeTypingIndicator();
+          
+          // Générer et afficher une réponse
+          const response = generateResponse(message);
+          addBotMessage(response);
+          
+          // Permettre une nouvelle soumission
+          isProcessing = false;
+        }, 800);
+      }
+      
+      // Gestion du menu principal
+      menuToggle.addEventListener('click', () => {
+        sidebar.classList.add('open');
+        sidebarOverlay.classList.add('open');
+      });
+      
+      const closeMenu = () => {
+        sidebar.classList.remove('open');
+        sidebarOverlay.classList.remove('open');
+      };
+      
+      // Gestion des paramètres
+      openSettings.addEventListener('click', () => {
+        settingsScreen.classList.add('open');
+      });
+      
+      backFromSettings.addEventListener('click', () => {
+        settingsScreen.classList.remove('open');
+      });
+      
+      sidebarOverlay.addEventListener('click', closeMenu);
+      
+      // Toggle du sous-menu des thèmes
+      themeSettings.addEventListener('click', () => {
+        themeSubmenu.classList.toggle('open');
+        themeArrow.classList.toggle('arrow-rotate');
+      });
+      
+      // Mise à jour complète de l'interface selon le thème
+      function updateInterface(theme) {
+        // Éviter les mises à jour inutiles
+        if (currentTheme === theme) return;
+        currentTheme = theme;
+        
+        // Mettre à jour l'indicateur actif sur les sous-menus
+        if (theme === 'galaxy') {
+          themeGalaxy.classList.add('active');
+          themeOcean.classList.remove('active');
+        } else {
+          themeGalaxy.classList.remove('active');
+          themeOcean.classList.add('active');
+        }
+        
+        // Mettre à jour les éléments DOM avec des classes CSS
+        const gradientElements = document.querySelectorAll('.theme-gradient');
+        const textElements = document.querySelectorAll('.theme-text');
+        const borderElements = document.querySelectorAll('.theme-border');
+        const inputBgElements = document.querySelectorAll('.theme-input-bg');
+        const headerElement = document.querySelector('.fixed-header');
+        
+        if (theme === 'galaxy') {
+          // Mise à jour des classes de thème
+          document.body.classList.remove('theme-ocean');
+          document.body.classList.add('theme-galaxy');
+          
+          // Mise à jour des gradients et autres éléments
+          requestAnimationFrame(() => {
+            gradientElements.forEach(el => {
+              el.classList.remove('from-blue-600', 'to-cyan-500');
+              el.classList.add('from-pink-600', 'to-purple-600');
+            });
+            
+            textElements.forEach(el => {
+              el.classList.remove('from-blue-500', 'to-cyan-400');
+              el.classList.add('from-pink-500', 'to-purple-500');
+            });
+            
+            borderElements.forEach(el => {
+              el.classList.remove('border-blue-500');
+              el.classList.add('border-pink-500');
+            });
+            
+            inputBgElements.forEach(el => {
+              el.style.backgroundColor = '#161630';
+            });
+            
+            if (headerElement) {
+              headerElement.style.backgroundColor = '#0c1221';
+            }
+          });
+          
+        } else if (theme === 'ocean') {
+          // Mise à jour des classes de thème
+          document.body.classList.remove('theme-galaxy');
+          document.body.classList.add('theme-ocean');
+          
+          // Mise à jour des gradients et autres éléments
+          requestAnimationFrame(() => {
+            gradientElements.forEach(el => {
+              el.classList.remove('from-pink-600', 'to-purple-600');
+              el.classList.add('from-blue-600', 'to-cyan-500');
+            });
+            
+            textElements.forEach(el => {
+              el.classList.remove('from-pink-500', 'to-purple-500');
+              el.classList.add('from-blue-500', 'to-cyan-400');
+            });
+            
+            borderElements.forEach(el => {
+              el.classList.remove('border-pink-500');
+              el.classList.add('border-blue-500');
+            });
+            
+            inputBgElements.forEach(el => {
+              el.style.backgroundColor = '#002845';
+            });
+            
+            if (headerElement) {
+              headerElement.style.backgroundColor = '#001e3c';
+            }
+          });
+          
+          // Générer des bulles au changement
+          createOptimizedBubbles();
+        }
+        
+        // Sauvegarde du thème choisi
+        localStorage.setItem('selectedTheme', theme);
+      }
+      
+      // Gestion des options de thème
+      themeGalaxy.addEventListener('click', () => {
+        updateInterface('galaxy');
+      });
+      
+      themeOcean.addEventListener('click', () => {
+        updateInterface('ocean');
+      });
+      
+      document.getElementById('about-settings').addEventListener('click', () => {
+        // Ici vous pourriez ouvrir une fenêtre d'information à propos de l'application
+        alert("Assistant IA - Version 1.0\nUne interface moderne pour vos conversations avec l'IA.");
+      });
+      
+      // ==============================
+      // 7. INITIALISATION
+      // ==============================
+      
+      // Charger le thème sauvegardé
+      const savedTheme = localStorage.getItem('selectedTheme');
+      if (savedTheme) {
+        updateInterface(savedTheme);
+      }
+      
+      // Initialiser le fond galaxie avec optimisation
+      createOptimizedGalaxyBackground();
+      
+      // Commencer à générer des bulles périodiquement avec optimisation
+      const bubblesInterval = setInterval(() => {
+        if (document.body.classList.contains('theme-ocean')) {
+          createOptimizedBubbles();
+        }
+      }, 3000);
+      
+      // Initialiser le gestionnaire du clavier mobile
+      handleKeyboardState();
+      
+      // Focus sur l'input au chargement - retardé pour éviter les problèmes
+      setTimeout(() => {
+        userInput.focus();
+      }, 800);
+      
+      // Ajouter des gestionnaires pour les cards d'action
+      document.querySelectorAll('.action-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const textContent = card.querySelector('span:last-child').textContent.trim();
+          userInput.value = `Je voudrais ${textContent.toLowerCase()}`;
+          userInput.focus();
+        });
+      });
+      
+      // Gestionnaires pour les éléments du menu
+      document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', () => {
+          closeMenu();
+          // On pourrait ajouter ici une action spécifique pour chaque élément du menu
+        });
+      });
+      
+      // Nettoyage lors de la fermeture
+      window.addEventListener('beforeunload', () => {
+        clearInterval(bubblesInterval);
+      });
+    });
+  </script>
+</body>
+</html>
